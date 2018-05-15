@@ -23,10 +23,13 @@ sapply(data$DISTRICT_CODE, plot.pop)
 model <- lm(POP_TOTAL ~ DISTRICT_CODE + REF_DATE, data)
 summary(model)
 
-model <- lm(POP_TOTAL ~ poly(REF_DATE, 6), data[data$DISTRICT_CODE == 23,])
+model.lin <- lm(POP_TOTAL ~ REF_DATE, data[data$DISTRICT_CODE == 5,])
+pred.lin <- predict(model.lin)
+model <- lm(POP_TOTAL ~ poly(REF_DATE, 6), data[data$DISTRICT_CODE == 5,])
 pred <- predict(model)
-plot.pop(23)
-lines(data[data$DISTRICT_CODE == 23,]$REF_DATE, pred)
+plot.pop(5)
+lines(data[data$DISTRICT_CODE == 5,]$REF_DATE, pred.lin, col = "blue")
+lines(data[data$DISTRICT_CODE == 5,]$REF_DATE, pred, col = "red")
 
 # calculate correlation of pop totals per district
 corr <- function (n, m) {
