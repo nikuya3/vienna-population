@@ -43,7 +43,9 @@ corr <- function (n, m) {
 
 ui <- fluidPage(
   titlePanel("Correlation of population change between districts (1869--2015)"),
-  plotOutput("corrsp", click = "dist_click")
+  p("Click on district to display correlations"),
+  plotOutput("corrsp", click = "dist_click"),
+  a("Source: https://www.data.gv.at/katalog/dataset/091a085f-2652-429f-8dde-c69199440ddf (Stadt Wien)", href = "https://www.data.gv.at/katalog/dataset/091a085f-2652-429f-8dde-c69199440ddf")
 )
 
 server <- function(input, output) {
@@ -57,7 +59,7 @@ server <- function(input, output) {
     corrs[dist] <- NA
     polys %>%
       ggplot(aes(longitude, latitude, group = name, fill = corrs[from_name(name)])) +
-      geom_polygon(color = "white") +
+      geom_polygon(color = "black") +
       theme_void() +
       guides(fill = guide_legend(paste(
         "Correlation to district", formatC(dist, width = 2, flag = "0")
