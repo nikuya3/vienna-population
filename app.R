@@ -1,18 +1,8 @@
-packages = c("shiny", "ggplot2", "tidykml", "magrittr", "sp")
-
-install_if_missing = function(p) {
-  if (p %in% rownames(installed.packages()) == FALSE) {
-    if (p == "tidykml") {
-      install.packages("devtools")
-      devtools::install_github("briatte/tidykml")
-    }
-    install.packages(p)
-  }
-  
-  library(p, character.only = TRUE)
-}
-
-invisible(sapply(packages, install_if_missing))
+library(shiny)
+library(ggplot2)
+library(tidykml)
+library(magrittr)
+library(sp)
 
 mappings <- read.csv("data/mappings.csv", header = FALSE)
 polys <- kml_polygons("data/bezirke.kml")
@@ -42,10 +32,28 @@ corr <- function (n, m) {
 }
 
 ui <- fluidPage(
-  titlePanel("Correlation of population change between districts (1869--2015)"),
-  p("Click on district to display correlations"),
-  plotOutput("corrsp", click = "dist_click"),
-  a("Source: https://www.data.gv.at/katalog/dataset/091a085f-2652-429f-8dde-c69199440ddf (Stadt Wien)", href = "https://www.data.gv.at/katalog/dataset/091a085f-2652-429f-8dde-c69199440ddf")
+  fluidRow(
+    column(2),
+    column(8, h1("Correlation of population change between districts (1869--2015)")),
+    column(2)
+  ),
+  fluidRow(
+    column(3),
+    column(6,
+           plotOutput("corrsp", click = "dist_click")
+    ),
+    column(3)
+  ),
+  fluidRow(
+    column(2),
+    column(8,
+           wellPanel(
+             p("Click on district to display correlations"),
+             a("Source: https://www.data.gv.at/katalog/dataset/091a085f-2652-429f-8dde-c69199440ddf (Stadt Wien)", href = "https://www.data.gv.at/katalog/dataset/091a085f-2652-429f-8dde-c69199440ddf")
+           )
+    ),
+    column(2)
+  )
 )
 
 server <- function(input, output) {
