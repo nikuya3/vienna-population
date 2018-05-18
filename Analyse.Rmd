@@ -1,0 +1,129 @@
+---
+title: "Wiener Bevölkerung von 1869"
+output: html_notebook
+---
+
+## Loading and cleaning
+Dieses Notebook beschreibt den von der Stadt Wien veröffentlichten Datensatz "Bevölkerung seit 1869 Wien". Dieser Datensatz wird als CSV-Datei bereitgestellt und kann dementsprechend geladen werden. 
+
+```{r}
+data <- read.csv2("data/vie_101.csv", skip = 1)
+```
+
+
+Verschaffen wir uns zunächst einen Überblick.
+
+```{r}
+summary(data)
+```
+
+Wie man sieht, sind die Werte der Variablen `NUTS1`, `NUTS2`, `NUTS3` und `SUB_DISTRICT_CODE` für alle Observationen gleich, somit können diese entfernt werden.
+
+```{r}
+data <- data[,!(names(data) %in% c("NUTS1", "NUTS2", "NUTS3", "SUB_DISTRICT_CODE"))]
+```
+
+Klarerweise scheint die Variable `REF_DATE` ein Datum darzustellen. Somit muss diese als numerisch erkannte Variable geändert werden.
+
+```{r}
+data$REF_DATE <- as.character(data$REF_DATE)
+data$REF_DATE <- as.Date(data$REF_DATE, format = "%Y%m%d")
+```
+
+Die Variable `DISTRICT_CODE` kennzeichnet Bezirke. Wandeln wir diese in eine kategorische Variable um.
+
+```{r}
+data$DISTRICT_CODE <- as.factor((data$DISTRICT_CODE - 90000) / 100)
+```
+
+Sehen wir uns die Daten nochmals im Detail an.
+
+```{r}
+summary(data)
+```
+
+Interessanterweise fehlen einige Werte in den Variablen `POP_MEN` und `POP_WOMEN`. Höchstwahrscheinlich wurden diese erst nach 1869 erfasst.
+
+```{r}
+missings <- data[data$POP_MEN == "." | data$POP_WOMEN == ".",]
+unique(missings$REF_DATE)
+```
+
+Somit ist klar, dass bis 1951 keine geschlechtsabhängigen Daten vorhanden sind.
+
+Es ist möglich, dass über die lange Dauer der Erhebungen (seit 1869) die Daten der Bezirke zu unterschiedlichen Zeitpunkten erfasst wurden. Überprüfen wir, ob die Zeitpunkte der Daten bei allen Bezirken übereinstimmen.
+
+```{r}
+dates <- sapply(1:23, function (d) { unique(data[data$DISTRICT_CODE == d,]$REF_DATE) })
+if (all(dates == dates[,1])) {
+  cat("Zeitpunkte stimmen überein")
+}
+```
+
+## Trends
+
+Mit dem sauberen Datensatz können wir uns nun Bevölkerungstrends ansehen. Stellen wir eine Bevölkerungsgraphik für die Innere Stadt auf.
+```{r}
+plot.pop <- function(district) {
+  data <- data[data$DISTRICT_CODE == district,]
+  title <- paste("Population in ", district, ". district per year", sep = "")
+  plot(POP_TOTAL ~ REF_DATE, data, main = title, xlab = "Date", ylab = "Population")
+  axis.Date(1, at = c(seq(min(data$REF_DATE), max(data$REF_DATE), by = "50 years"), max(data$REF_DATE)))
+}
+
+plot.pop(1)
+```
+
+Möglicherweise interessant ist die Einsicht, dass die Bevölkerung der Inneren Stadt heutzutage __geringer__ ist als im 19. Jahrhundert. Wien war damals als Hauptstadt des Kaisertum Österreich eine größere Metropole als heute. Sehen wir uns dazu die Graphiken mehrerer Bezirke an.
+
+```{r}
+sapply(c(3,9,14,21), plot.pop)
+```
+
+Interessant ist, dass die oben genannte Hypothese für manche Bezirke nicht hält. Deren Bevölkerung ist heutzutage sogar größer denn je. Dabei handelt es sich größtenteils um die Flächenbezirke, welche im 19. Jahrhundert noch Vororte von Wien waren und erst später eingegliedert wurden.
+
+Sehen wir einmal, ob es möglich ist, die Bevölkerungstrends mittels einem statistischen Modell zu beschreiben.
+
+```{r}
+model <- lm(POP_TOTAL ~ DISTRICT_CODE + REF_DATE, data)
+summary(model)
+```
+
+Bis auf Wieden, Mariahilf und Josefstadt lassen sich die Bevölkerungszahlen der Bezirke zu spezifischen Zeitpunkten mittels linearer Regression gut beschreiben.
+
+Sehen wir uns eine spezifische Regression anhand eines Innenstadt-Bezirkes an, wobei die blaue Linie eine lineare Regression und der rote Graph eine Polynomfunktion 6. Grades darstellt.
+
+```{r}
+trend.pop <- function(district) {
+  model.lin <- lm(POP_TOTAL ~ REF_DATE, data[data$DISTRICT_CODE == district,])
+  pred.lin <- predict(model.lin)
+  model <- lm(POP_TOTAL ~ poly(REF_DATE, 6), data[data$DISTRICT_CODE == district,])
+  pred <- predict(model)
+  plot.pop(district)
+  lines(data[data$DISTRICT_CODE == district,]$REF_DATE, pred.lin, col = "blue")
+  lines(data[data$DISTRICT_CODE == district,]$REF_DATE, pred, col = "red")
+}
+
+trend.pop(3)
+```
+
+Und zum Vergleich ein Flächenbezirk.
+
+```{r}
+trend.pop(13)
+```
+
+## Correlations
+
+Die Dynamik zwischen Innenstadt- und Flächenbezirken schlägt sich anscheinend in diesen Datensatz nieder. Das macht weitere Analysen vonnöten. Mittels eines Korrelationskoeffizienten kann die Korrelation des Bevölkerungswachstums zwischen zwei Bezirken angegeben werden. Berechnen wir diesen für jeden Bezirk.
+
+```{r}
+library(corrplot)
+corr <- function (n, m) {
+  cor(data[data$DISTRICT_CODE == n,]$POP_TOTAL, data[data$DISTRICT_CODE == m,]$POP_TOTAL)
+}
+corrs <- sapply(1:23, function (n) { sapply(1:23, function (m) { corr(n, m) }) })
+corrplot(corrs, type = "upper")
+```
+
+Es ist interessant zu beobachten, dass teilweise sehr starke Korrelationen zwischen Bezirken existieren. Mittels einer interaktiven Grafik kann dies noch deutlicher veranschaulicht werden. Diese Graphik ist auf https://nikuya3.shinyapps.io/vienna-population verfügbar.
